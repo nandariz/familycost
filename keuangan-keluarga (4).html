@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dompet Keluarga</title>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+  body {
+    background: #0a0e1a; color: #e8eef7; min-height: 100vh;
+    padding: 20px 16px 40px; max-width: 480px; margin: 0 auto; overflow-x: hidden;
+  }
+  .glow { position: fixed; border-radius: 50%; filter: blur(90px); opacity: .35; pointer-events: none; z-index: 0; }
+  .g1 { width: 220px; height: 220px; background: #0ea5e9; top: -60px; right: -60px; animation: napas 4s ease-in-out infinite; }
+  .g2 { width: 180px; height: 180px; background: #6366f1; bottom: 40px; left: -80px; animation: napas 5s ease-in-out infinite reverse; }
+  @keyframes napas { 0%,100% { transform: scale(1); opacity: .35; } 50% { transform: scale(1.25); opacity: .5; } }
+  .bintang { position: fixed; width: 3px; height: 3px; background: #fff; border-radius: 50%; opacity: .3; animation: kelip 3s infinite; z-index: 0; }
+  @keyframes kelip { 0%,100% { opacity: .15; } 50% { opacity: .7; } }
+
+  header { position: relative; z-index: 1; margin-bottom: 18px; animation: turun .6s ease both; }
+  header h1 { font-size: 17px; font-weight: 600; color: #8fa3c0; }
+  header p { font-size: 13px; color: #55688a; }
+
+  .glass {
+    position: relative; z-index: 1;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 20px; backdrop-filter: blur(14px);
+    padding: 18px; margin-bottom: 14px; animation: muncul .6s ease both;
+  }
+  .glass:nth-of-type(2) { animation-delay: .1s; }
+  .glass:nth-of-type(3) { animation-delay: .2s; }
+  @keyframes muncul { from { opacity: 0; transform: translateY(24px) scale(.97); } to { opacity: 1; transform: none; } }
+  @keyframes turun { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: none; } }
+
+  .saldo-label { font-size: 12px; color: #8fa3c0; letter-spacing: .5px; text-transform: uppercase; }
+  .saldo { font-size: 34px; font-weight: 700; margin-top: 4px; }
+  .saldo.positif { color: #34d399; text-shadow: 0 0 24px rgba(52,211,153,.35); }
+  .saldo.negatif { color: #fb7185; text-shadow: 0 0 24px rgba(251,113,133,.35); }
+  .saldo.pop { animation: pop .5s ease; }
+  @keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.15); } 100% { transform: scale(1); } }
+
+  .ringkas { display: flex; gap: 10px; margin-top: 14px; }
+  .ringkas > div { flex: 1; background: rgba(255,255,255,0.04); border-radius: 14px; padding: 10px 12px; }
+  .ringkas .label { font-size: 11px; color: #8fa3c0; }
+  .masuk { color: #34d399; font-weight: 700; font-size: 15px; margin-top: 2px; }
+  .keluar { color: #fb7185; font-weight: 700; font-size: 15px; margin-top: 2px; }
+
+  .tab { display: flex; gap: 6px; background: rgba(255,255,255,0.05); border-radius: 12px; padding: 4px; margin-bottom: 14px; }
+  .tab button {
+    flex: 1; padding: 9px; border: none; border-radius: 9px; background: transparent;
+    color: #8fa3c0; font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: all .25s cubic-bezier(.34,1.56,.64,1);
+  }
+  .tab button.aktif { background: #0ea5e9; color: #fff; box-shadow: 0 0 18px rgba(14,165,233,.45); transform: scale(1.03); }
+
+  form { display: flex; flex-direction: column; gap: 10px; }
+  input, select {
+    padding: 12px 14px; border-radius: 12px; font-size: 15px; width: 100%;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+    color: #e8eef7; outline: none; transition: border .2s, box-shadow .2s;
+  }
+  input:focus, select:focus { border-color: #0ea5e9; box-shadow: 0 0 14px rgba(14,165,233,.3); }
+  input::placeholder { color: #55688a; }
+  select option { background: #141a2e; }
+  input[type="date"] { color-scheme: dark; }
+  .baris { display: flex; gap: 10px; }
+  .baris > div { flex: 1; }
+
+  .btn-utama {
+    padding: 13px; border: none; border-radius: 12px; cursor: pointer;
+    background: linear-gradient(135deg, #0ea5e9, #6366f1);
+    color: #fff; font-size: 15px; font-weight: 700;
+    box-shadow: 0 4px 20px rgba(14,165,233,.4);
+    transition: transform .15s cubic-bezier(.34,1.56,.64,1);
+    animation: denyut 2.5s ease-in-out infinite;
+  }
+  @keyframes denyut { 0%,100% { box-shadow: 0 4px 20px rgba(14,165,233,.4); } 50% { box-shadow: 0 4px 32px rgba(99,102,241,.65); } }
+  .btn-utama:active { transform: scale(.93); }
+  .btn-utama.sukses { background: linear-gradient(135deg, #10b981, #34d399); animation: goyang .5s ease; }
+  @keyframes goyang { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-3deg) scale(1.05); } 75% { transform: rotate(3deg) scale(1.05); } }
+
+  .btn-struk {
+    padding: 12px; border: none; border-radius: 12px; cursor: pointer; width: 100%;
+    background: rgba(52,211,153,.12); border: 1px dashed rgba(52,211,153,.5);
+    color: #34d399; font-size: 14.5px; font-weight: 700; transition: transform .15s;
+  }
+  .btn-struk:active { transform: scale(.96); }
+
+  .filter { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .filter button {
+    padding: 7px 13px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+    background: rgba(255,255,255,0.06); color: #8fa3c0;
+    border: 1px solid transparent; border-radius: 20px; transition: all .25s cubic-bezier(.34,1.56,.64,1);
+  }
+  .filter button.aktif { background: rgba(14,165,233,.18); color: #7dd3fc; border-color: rgba(14,165,233,.5); transform: scale(1.08); }
+
+  .judul-daftar { font-size: 13px; font-weight: 600; color: #8fa3c0; margin-bottom: 8px; }
+  ul { list-style: none; }
+  li { display: flex; justify-content: space-between; align-items: center; padding: 11px 4px; border-bottom: 1px solid rgba(255,255,255,0.06); animation: slideMasuk .4s ease both; }
+  li:last-child { border-bottom: none; }
+  @keyframes slideMasuk { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: none; } }
+  .info b { font-size: 14.5px; font-weight: 600; }
+  .info small { color: #55688a; display: block; font-size: 12px; margin-top: 1px; }
+  .aksi { display: flex; align-items: center; gap: 6px; }
+  .nilai { font-weight: 700; font-size: 14px; }
+  .hapus { background: none; border: none; color: #55688a; font-size: 17px; cursor: pointer; padding: 4px 6px; transition: transform .2s, color .2s; }
+  .hapus:active { transform: scale(1.5) rotate(20deg); color: #fb7185; }
+  .kosong { text-align: center; color: #55688a; padding: 24px 0; font-size: 14px; }
+  .kosong .maskot { font-size: 40px; display: block; animation: goyangLembut 2s ease-in-out infinite; }
+  @keyframes goyangLembut { 0%,100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
+
+  /* ===== Modal scan struk ===== */
+  .modal {
+    display: none; position: fixed; inset: 0; z-index: 50;
+    background: rgba(5,8,18,.85); backdrop-filter: blur(8px);
+    align-items: flex-end; justify-content: center;
+  }
+  .modal.buka { display: flex; }
+  .modal-isi {
+    background: #141a2e; border: 1px solid rgba(255,255,255,.1);
+    border-radius: 24px 24px 0 0; width: 100%; max-width: 480px;
+    max-height: 92vh; overflow-y: auto; padding: 20px 16px 28px;
+    animation: naik .35s cubic-bezier(.34,1.4,.64,1) both;
+  }
+  @keyframes naik { from { transform: translateY(100%); } to { transform: none; } }
+  .modal-judul { font-size: 16px; font-weight: 700; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
+  .tutup { background: none; border: none; color: #8fa3c0; font-size: 22px; cursor: pointer; }
+  #fotoPreview { width: 100%; border-radius: 14px; margin-bottom: 12px; display: none; }
+  .proses { text-align: center; color: #8fa3c0; font-size: 14px; padding: 14px 0; display: none; }
+  .spinner {
+    width: 34px; height: 34px; margin: 0 auto 10px;
+    border: 3px solid rgba(14,165,233,.2); border-top-color: #0ea5e9;
+    border-radius: 50%; animation: putar .8s linear infinite;
+  }
+  @keyframes putar { to { transform: rotate(360deg); } }
+  .item-struk {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(255,255,255,.05); border-radius: 12px;
+    padding: 10px 12px; margin-bottom: 8px; animation: slideMasuk .35s ease both;
+  }
+  .item-struk input[type="checkbox"] { width: 19px; height: 19px; accent-color: #0ea5e9; flex-shrink: 0; }
+  .item-struk .nama { flex: 1; font-size: 14px; text-transform: capitalize; }
+  .item-struk .harga { font-weight: 700; color: #fb7185; font-size: 13.5px; white-space: nowrap; }
+  .scan-kosong { text-align: center; color: #55688a; font-size: 13.5px; padding: 10px 0 4px; line-height: 1.6; }
+  .ringkas-scan {
+    display: flex; justify-content: space-between; align-items: center;
+    background: rgba(14,165,233,.1); border: 1px solid rgba(14,165,233,.3);
+    border-radius: 12px; padding: 12px 14px; margin: 12px 0;
+  }
+  .ringkas-scan .label { font-size: 12px; color: #8fa3c0; }
+  .ringkas-scan .total { font-size: 17px; font-weight: 700; color: #7dd3fc; }
+  .konfeti { position: fixed; top: -12px; font-size: 20px; z-index: 99; pointer-events: none; animation: jatuh linear forwards; }
+  @keyframes jatuh { to { transform: translateY(105vh) rotate(720deg); opacity: .2; } }
+</style>
+</head>
+<body>
+
+<div class="glow g1"></div>
+<div class="glow g2"></div>
+
+<header>
+  <h1>Dompet Keluarga 🎪</h1>
+  <p id="tanggalHariIni"></p>
+</header>
+
+<div class="glass">
+  <div class="saldo-label">Saldo</div>
+  <div class="saldo" id="saldo">Rp 0</div>
+  <div class="ringkas">
+    <div><div class="label">Masuk 🎁</div><div class="masuk" id="totMasuk">Rp 0</div></div>
+    <div><div class="label">Keluar 🎈</div><div class="keluar" id="totKeluar">Rp 0</div></div>
+  </div>
+</div>
+
+<div class="glass">
+  <button class="btn-struk" onclick="bukaScan()">📸 Jepret Struk Belanja, Baca Otomatis</button>
+  <div style="height:14px"></div>
+  <div class="tab">
+    <button type="button" id="tabKeluar" class="aktif" onclick="gantiTab('keluar')">Pengeluaran</button>
+    <button type="button" id="tabMasuk" onclick="gantiTab('masuk')">Pemasukan</button>
+  </div>
+  <form id="form" onsubmit="tambah(event)">
+    <input type="number" id="jumlah" placeholder="Jumlah (Rp)" min="0" step="any" required>
+    <div class="baris">
+      <select id="kategori"></select>
+      <input type="date" id="tanggal" required>
+    </div>
+    <input type="text" id="ket" placeholder="Catatan (opsional)">
+    <button type="submit" class="btn-utama" id="btnSimpan">Simpan Pengeluaran 🎯</button>
+  </form>
+</div>
+
+<div class="glass">
+  <div class="filter">
+    <button class="aktif" onclick="gantiFilter('semua', this)">Semua</button>
+    <button onclick="gantiFilter('bulan', this)">Bulan ini</button>
+    <button onclick="gantiFilter('anak', this)">Anak 👶</button>
+  </div>
+  <div class="judul-daftar">Riwayat</div>
+  <ul id="daftar"></ul>
+</div>
+
+<!-- Modal scan struk -->
+<div class="modal" id="modalScan">
+  <div class="modal-is">
+  <div class="modal-is">
+    <div class="modal-judul">📸 Scan Struk <button class="tutup" onclick="tutupScan()">×</button></div>
+    <img id="fotoPreview" alt="struk">
+    <div class="proses" id="proses">
+      <div class="spinner"></div>
+      <div id="prosesTeks">Membaca struk...</div>
+    </div>
+    <div id="areaHasil"></div>
+  </div>
+  </div>
+</div>
+
+<input type="file" id="inputKamera" accept="image/*" capture="environment" style="display:none" onchange="strukDipilih(this)">
+
+<script>
+const KATEGORI_KELUAR = ['Kebutuhan Anak','Susu','Diaper','Makan & Minum','Kesehatan','Tagihan','Transport','Lainnya'];
+const KATEGORI_MASUK = ['Gaji','Bonus','Usaha','Lainnya'];
+const EMOJI_KONFETI = ['🎉','✨','🎈','💰','⭐','🎊','💸','🪙'];
+
+let tab = 'keluar', filter = 'semua';
+let data = JSON.parse(localStorage.getItem('keuanganKeluarga') || '[]');
+let itemsStruk = [];
+
+function simpan() { localStorage.setItem('keuanganKeluarga', JSON.stringify(data)); }
+
+const HARI = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+const BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const d = new Date();
+document.getElementById('tanggalHariIni').textContent =
+  `${HARI[d.getDay()]}, ${d.getDate()} ${BULAN[d.getMonth()]} ${d.getFullYear()}`;
+
+for (let i = 0; i < 25; i++) {
+  const b = document.createElement('div');
+  b.className = 'bintang';
+  b.style.left = Math.random() * 100 + 'vw';
+  b.style.top = Math.random() * 100 + 'vh';
+  b.style.animationDelay = Math.random() * 3 + 's';
+  document.body.appendChild(b);
+}
+
+function gantiTab(t) {
+  tab = t;
+  document.getElementById('tabKeluar').classList.toggle('aktif', t === 'keluar');
+  document.getElementById('tabMasuk').classList.toggle('aktif', t === 'masuk');
+  document.getElementById('btnSimpan').textContent = 'Simpan ' + (t === 'keluar' ? 'Pengeluaran' : 'Pemasukan') + ' 🎯';
+  document.getElementById('kategori').innerHTML =
+    (t === 'keluar' ? KATEGORI_KELUAR : KATEGORI_MASUK).map(k => `<option>${k}</option>`).join('');
+}
+
+function gantiFilter(f, btn) {
+  filter = f;
+  document.querySelectorAll('.filter button').forEach(b => b.classList.remove('aktif'));
+  btn.classList.add('aktif');
+  render();
+}
+
+function konfeti() {
+  for (let i = 0; i < 18; i++) {
+    const k = document.createElement('div');
+    k.className = 'konfeti';
+    k.textContent = EMOJI_KONFETI[Math.floor(Math.random() * EMOJI_KONFETI.length)];
+    k.style.left = Math.random() * 100 + 'vw';
+    k.style.animationDuration = (1.6 + Math.random() * 1.4) + 's';
+    k.style.animationDelay = Math.random() * .3 + 's';
+    document.body.appendChild(k);
+    setTimeout(() => k.remove(), 3500);
+  }
+}
+
+/* ============ SCAN STRUK ============ */
+function bukaScan() {
+  document.getElementById('modalScan').classList.add('buka');
+  document.getElementById('fotoPreview').style.display = 'none';
+  document.getElementById('proses').style.display = 'none';
+  document.getElementById('areaHasil').innerHTML =
+    '<div class="scan-kosong">Belum ada struk.<br>Klik tombol di bawah untuk memfoto struk belanja.</div>';
+}
+function tutupScan() { document.getElementById('modalScan').classList.remove('buka'); }
+
+function bukaKamera() { document.getElementById('inputKamera').click(); }
+
+function strukDipilih(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById('fotoPreview');
+    img.src = e.target.result;
+    img.style.display = 'block';
+    document.getElementById('areaHasil').innerHTML = '';
+    prosesOCR(e.target.result);
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+async function prosesOCR(dataUrl) {
+  const proses = document.getElementById('proses');
+  const teks = document.getElementById('prosesTeks');
+  proses.style.display = 'block';
+  teks.textContent = 'Membaca struk... (butuh internet, ±10-30 detik)';
+  try {
+    const hasil = await Tesseract.recognize(dataUrl, 'ind');
+    teks.textContent = 'Menganalisis item...';
+    const items = parseStruk(hasil.data.text);
+    tampilkanHasil(items);
+  } catch (err) {
+    teks.textContent = '';
+    document.getElementById('areaHasil').innerHTML =
+      '<div class="scan-kosong">Gagal membaca struk. Pastikan internet aktif, atau masukkan manual di form.</div>';
+  }
+  proses.style.display = 'none';
+}
+
+function parseStruk(teks) {
+  const items = [];
+  teks.split('\n').forEach(baris => {
+    baris = baris.trim();
+    // cari angka harga di akhir baris, misal 12.000 / 12,000 / 12000 / 12.000,00
+    const m = baris.match(/([\d.,]+)\s*$/);
+    if (!m) return;
+    const bersih = m[1].replace(/\./g, '').replace(/,/g, '');
+    const angka = parseInt(bersih, 10);
+    if (isNaN(angka) || angka < 100) return;
+    let nama = baris.replace(m[1], '').replace(/[\d.,xX*@#=]+/g, ' ').trim();
+    if (nama.length < 2) return;
+    const low = baris.toLowerCase();
+    // baris total/kembalian tidak dihitung sebagai item
+    const isTotal = /total|tunai|kembali|bayar|cash|sub\s*total/.test(low);
+    items.push({ nama: nama.slice(0, 40), jumlah: angka, total: isTotal, pilih: !isTotal, kategori: tebakKategori(low) });
+  });
+  return items;
+}
+
+function tebakKategori(teksLow) {
+  if (/(susu|formula|dancow|bebelac|sgm|morinag|nan |lactogen)/.test(teksLow)) return 'Susu';
+  if (/(diaper|popok|huggies|mamy|sweety|pampers|baby joy)/.test(teksLow)) return 'Diaper';
+  if (/(obat|vitamin|paracetamol|salep|betadine|tolak angin)/.test(teksLow)) return 'Kesehatan';
+  if (/(buku|susuan|mainan|baju anak|botol|dot|bubur|gerber|rice cereal)/.test(teksLow)) return 'Kebutuhan Anak';
+  if (/(nasi|ayam|mie|roti|tehus|air mineral|aqua|kopi|gula|minyak|telur|beras|sayur|buah|snack|snek)/.test(teksLow)) return 'Makan & Minum';
+  return 'Lainnya';
+}
+
+function tampilkanHasil(items) {
+  itemsStruk = items;
+  const area = document.getElementById('areaHasil');
+  if (items.length === 0) {
+    area.innerHTML = '<div class="scan-kosong">Tidak ada item terbaca. Coba foto lebih terang dan tegak, atau masukkan manual.</div>';
+    return;
+  }
+  area.innerHTML = `
+    <div class="scan-kosong">Centang item yang mau dicatat (yang terdeteksi "total" tidak dicentang otomatis):</div>
+    <div id="daftarStruk"></div>
+    <div class="ringkas-scan">
+      <div><div class="label">Total dicentang</div><div class="total" id="totalStruk">Rp 0</div></div>
+    </div>
+    <div class="baris" style="margin-bottom:10px">
+      <div><select id="kategoriStruk"></select></div>
+      <div><input type="date" id="tanggalStruk"></div>
+    </div>
+    <button class="btn-utama" onclick="simpanStruk()">Simpan dari Struk 🎉</button>`;
+  document.getElementById('kategoriStruk').innerHTML = KATEGORI_KELUAR.map(k => `<option>${k}</option>`).join('');
+  document.getElementById('tanggalStruk').valueAsDate = new Date();
+  renderStruk();
+}
+
+function renderStruk() {
+  document.getElementById('daftarStruk').innerHTML = itemsStruk.map((it, i) => `
+    <div class="item-struk">
+      <input type="checkbox" ${it.pilih ? 'checked' : ''} onchange="itemsStruk[${i}].pilih=this.checked; hitungStruk()">
+      <div class="nama">${it.nama}</div>
+      <div class="harga">${rp(it.jumlah)}</div>
+    </div>`).join('');
+  hitungStruk();
+}
+
+function hitungStruk() {
+  const total = itemsStruk.filter(x => x.pilih).reduce((a, x) => a + x.jumlah, 0);
+  document.getElementById('totalStruk').textContent = rp(total);
+}
+
+function simpanStruk() {
+  const kategori = document.getElementById('kategoriStruk').value;
+  const tanggal = document.getElementById('tanggalStruk').value;
+  const dipilih = itemsStruk.filter(x => x.pilih);
+  if (dipilih.length === 0) { alert('Centang minimal satu item dulu.'); return; }
+  dipilih.forEach(x => {
+    data.unshift({ jenis: 'keluar', jumlah: x.jumlah, kategori, tanggal, ket: x.nama });
+  });
+  simpan();
+  tutupScan();
+  konfeti();
+  render();
+}
+/* ============ AKHIR SCAN ============ */
+
+function tambah(e) {
+  e.preventDefault();
+  data.unshift({
+    jenis: tab,
+    jumlah: +document.getElementById('jumlah').value,
+    kategori: document.getElementById('kategori').value,
+    tanggal: document.getElementById('tanggal').value,
+    ket: document.getElementById('ket').value
+  });
+  simpan();
+  document.getElementById('form').reset();
+  document.getElementById('tanggal').valueAsDate = new Date();
+  const btn = document.getElementById('btnSimpan');
+  btn.classList.add('sukses');
+  btn.textContent = 'Tersimpan! 🎉';
+  setTimeout(() => { btn.classList.remove('sukses'); gantiTab(tab); }, 900);
+  konfeti();
+  render();
+}
+
+function hapus(i) {
+  if (confirm('Hapus catatan ini?')) { data.splice(i, 1); simpan(); render(); }
+}
+
+function rp(n) { return 'Rp ' + n.toLocaleString('id-ID'); }
+
+function animasiAngka(el, target) {
+  const awal = +(el.dataset.nilai || 0);
+  if (awal === target) { el.textContent = rp(target); return; }
+  const mulai = performance.now(), durasi = 600;
+  function langkah(saat) {
+    const p = Math.min((saat - mulai) / durasi, 1);
+    const mudah = 1 - Math.pow(1 - p, 3);
+    el.textContent = rp(Math.round(awal + (target - awal) * mudah));
+    if (p < 1) requestAnimationFrame(langkah);
+  }
+  requestAnimationFrame(langkah);
+  el.dataset.nilai = target;
+}
+
+function lolosFilter(item) {
+  if (filter === 'bulan') return item.tanggal.slice(0,7) === new Date().toISOString().slice(0,7);
+  if (filter === 'anak') return item.jenis === 'keluar' && ['Kebutuhan Anak','Susu','Diaper','Kesehatan'].includes(item.kategori);
+  return true;
+}
+
+function render() {
+  const masuk = data.filter(x => x.jenis === 'masuk').reduce((a, x) => a + x.jumlah, 0);
+  const keluar = data.filter(x => x.jenis === 'keluar').reduce((a, x) => a + x.jumlah, 0);
+  const saldo = masuk - keluar;
+  const elSaldo = document.getElementById('saldo');
+  animasiAngka(elSaldo, saldo);
+  elSaldo.className = 'saldo ' + (saldo >= 0 ? 'positif' : 'negatif');
+  elSaldo.classList.remove('pop'); void elSaldo.offsetWidth; elSaldo.classList.add('pop');
+  animasiAngka(document.getElementById('totMasuk'), masuk);
+  animasiAngka(document.getElementById('totKeluar'), keluar);
+
+  const tampil = data.filter(lolosFilter);
+  document.getElementById('daftar').innerHTML = tampil.length === 0
+    ? '<div class="kosong"><span class="maskot">🎠</span>Belum ada catatan</div>'
+    : tampil.map((x, i) => `
+      <li style="animation-delay:${Math.min(i * .05, .4)}s">
+        <div class="info">
+          <b>${x.kategori}</b>${x.ket ? ' - ' + x.ket : ''}
+          <small>${x.tanggal.split('-').reverse().join('/')}</small>
+        </div>
+        <div class="aksi">
+          <span class="nilai ${x.jenis === 'masuk' ? 'masuk' : 'keluar'}">
+            ${x.jenis === 'masuk' ? '+' : '-'}${rp(x.jumlah)}
+          </span>
+          <button class="hapus" onclick="hapus(${data.indexOf(x)})">×</button>
+        </div>
+      </li>`).join('');
+}
+
+document.getElementById('tanggal').valueAsDate = new Date();
+gantiTab('keluar');
+render();
+</script>
+</body>
+</html>
